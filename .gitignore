@@ -1,0 +1,34 @@
+# Ключи и секреты
+.env
+
+# Виртуальное окружение
+.venv/
+venv/
+env/
+
+# Временные файлы
+temp/
+*.tmp
+*.log
+
+# Результаты генерации (примеры — не коммитим в репо)
+*.mp3
+*.mp4
+explainer.mp4
+озвучка.mp3
+редомициляция.png
+сценарий.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

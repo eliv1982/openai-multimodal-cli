@@ -2,11 +2,12 @@
 Единая точка входа CLI для мультимодальных инструментов OpenAI.
 
 Поддерживаемые команды:
-  tts     - текст в речь (TTS)
-  stt     - речь в текст (STT)
-  img     - генерация изображений по текстовому промпту
-  narrate - тема → сценарий → озвучка (сценарий сохраняется в файл)
-  video   - создание обучающего видео на заданную тему
+  tts          - текст в речь (TTS)
+  stt          - речь в текст (STT)
+  img          - генерация изображений по текстовому промпту
+  infographic  - инфографика по теме (отдельно, flat design, 16:9)
+  narrate      - тема → сценарий → озвучка (сценарий сохраняется в файл)
+  video        - создание обучающего видео на заданную тему
 """
 
 import argparse
@@ -74,12 +75,31 @@ def cmd_img(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_infographic(args: argparse.Namespace) -> None:
+    """Команда: только инфографика по теме (отдельно от видео/озвучки)."""
+    from image_gen import generate_image
+    from prompts import get_image_prompt
+
+    prompt = get_image_prompt(args.topic)
+    generate_image(
+        prompt=prompt,
+        output_path=Path(args.output),
+        model=args.model,
+        size=args.size,
+    )
+
+
 def cmd_narrate(args: argparse.Namespace) -> None:
     """Команда: тема → сценарий (в файл) → озвучка."""
     from script_gen import generate_script
     from tts import text_to_speech
 
-    script_text = generate_script(topic=args.topic, model=args.model)
+    script_text = generate_script(
+        topic=args.topic,
+        model=args.model,
+        channel=args.channel,
+        verify_checklist=args.verify_checklist,
+    )
     script_path = Path(args.script_output)
     script_path.write_text(script_text, encoding="utf-8")
     logger.info("Сценарий сохранён: %s", script_path)
@@ -105,6 +125,7 @@ def cmd_video(args: argparse.Namespace) -> None:
         model=args.model,
         size=args.size,
         keep_temp=args.keep_temp,
+        channel=args.channel,
     )
 
 
@@ -140,6 +161,14 @@ def main() -> None:
     img_parser.add_argument("--size", type=str, default="1024x1024", help="Размер изображения")
     img_parser.set_defaults(func=cmd_img)
 
+    # --- INFOGRAPHIC (только инфографика по теме) ---
+    infographic_parser = subparsers.add_parser("infographic", help="Инфографика по теме (отдельно от видео)")
+    infographic_parser.add_argument("topic", type=str, help="Тема инфографики (например: редомициляция компании)")
+    infographic_parser.add_argument("output", type=str, default="infographic.png", nargs="?", help="Путь к файлу")
+    infographic_parser.add_argument("--model", type=str, default="gpt-image-1", help="Модель генерации")
+    infographic_parser.add_argument("--size", type=str, default="1536x1024", help="Размер (альбом 1536x1024 — без обрезки)")
+    infographic_parser.set_defaults(func=cmd_infographic)
+
     # --- NARRATE (доп. опция: тема → сценарий → озвучка) ---
     narrate_parser = subparsers.add_parser("narrate", help="Тема → сценарий (файл) → озвучка")
     narrate_parser.add_argument("--topic", type=str, required=True, help="Тема сценария")
@@ -148,10 +177,12 @@ def main() -> None:
     narrate_parser.add_argument("--voice", type=str, default="nova", help="Голос")
     narrate_parser.add_argument("--model", type=str, default="gpt-4o", help="Модель GPT для сценария")
     narrate_parser.add_argument("--tts-model", type=str, default="gpt-4o-mini-tts", help="Модель TTS")
+    narrate_parser.add_argument("--channel", type=str, default=None, help="Канал: лента, презентация, встреча")
+    narrate_parser.add_argument("--verify-checklist", action="store_true", help="Проверить сценарий по чек-листу (тема редомициляция)")
     narrate_parser.set_defaults(func=cmd_narrate)
 
     # --- VIDEO ---
-    video_parser = subparsers.add_parser("video", help="Создание обучающего видео")
+    video_parser = subparsers.add_parser("video", help="Создание обучающего видео (1080p)")
     video_parser.add_argument("--topic", type=str, default="редомициляция", help="Тема видео")
     video_parser.add_argument("--output", type=str, default="video.mp4", help="Путь к выходному видео")
     video_parser.add_argument("--script-file", type=str, default=None, help="Путь к JSON-файлу сценария (опционально)")
@@ -159,6 +190,7 @@ def main() -> None:
     video_parser.add_argument("--model", type=str, default="gpt-4o", help="Модель GPT для сценария")
     video_parser.add_argument("--size", type=str, default="1536x1024", help="Размер кадров (1536x1024 — альбом, без обрезки)")
     video_parser.add_argument("--keep-temp", action="store_true", help="Не удалять временные файлы")
+    video_parser.add_argument("--channel", type=str, default=None, help="Канал: лента, презентация, встреча")
     video_parser.set_defaults(func=cmd_video)
 
     args = parser.parse_args()

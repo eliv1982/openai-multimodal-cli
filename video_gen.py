@@ -24,9 +24,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Целевое разрешение видео
-VIDEO_WIDTH = 1280
-VIDEO_HEIGHT = 720
+# Целевое разрешение видео (1080p Full HD — без ряби, плоские заливки)
+VIDEO_WIDTH = 1920
+VIDEO_HEIGHT = 1080
 # Без crossfade — избегаем ряби/артефактов на стыках кадров
 CROSSFADE_DURATION = 0.0
 
@@ -38,7 +38,7 @@ def _ensure_temp_dir() -> Path:
     return temp_dir
 
 
-def _generate_script(topic: str, model: str) -> list[dict[str, str]]:
+def _generate_script(topic: str, model: str, channel: str | None = None) -> list[dict[str, str]]:
     """
     Генерирует сценарий через GPT.
 
@@ -48,7 +48,7 @@ def _generate_script(topic: str, model: str) -> list[dict[str, str]]:
     load_dotenv()
     client = OpenAI()
 
-    prompt = get_script_prompt(topic)
+    prompt = get_script_prompt(topic, channel=channel)
 
     logger.info("Генерация сценария через GPT...")
     response = client.chat.completions.create(
@@ -115,9 +115,10 @@ def create_video(
     model: str = "gpt-4o",
     size: str = "1536x1024",
     keep_temp: bool = False,
+    channel: str | None = None,
 ) -> None:
     """
-    Создаёт обучающее видео на заданную тему.
+    Создаёт обучающее видео на заданную тему (1080p, чек-лист в сценарии).
 
     Args:
         topic: Тема видео (используется при генерации сценария).
@@ -127,6 +128,7 @@ def create_video(
         model: Модель GPT для генерации сценария.
         size: Размер генерируемых изображений.
         keep_temp: Не удалять временные файлы после сборки.
+        channel: Канал использования (лента, презентация, встреча).
     """
     try:
         from moviepy import (
@@ -167,7 +169,7 @@ def create_video(
         if script_path is not None:
             script = _load_script(Path(script_path))
         else:
-            script = _generate_script(topic, model)
+            script = _generate_script(topic, model, channel=channel)
 
         # 2. Генерация изображений и сбор текста
         parts_text: list[str] = []
@@ -278,6 +280,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", default="gpt-4o")
     parser.add_argument("--size", default="1536x1024", help="Размер кадров (альбом 1536x1024 — без обрезки)")
     parser.add_argument("--keep-temp", action="store_true")
+    parser.add_argument("--channel", default=None, help="Канал: лента, презентация, встреча")
     args = parser.parse_args()
 
     create_video(
@@ -288,4 +291,5 @@ if __name__ == "__main__":
         model=args.model,
         size=args.size,
         keep_temp=args.keep_temp,
+        channel=args.channel,
     )
